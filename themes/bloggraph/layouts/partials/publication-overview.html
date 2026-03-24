@@ -1,0 +1,91 @@
+{{/*  Pass in a Page context  */}}
+{{- $title := .Title }}
+{{- $thumbnailRaw := .Params.Thumbnail }}
+{{- $summary := default "" .Params.Summary }}
+
+{{- $projectPage := default .Permalink .Params.ProjectPage }}
+{{- $paperRaw := default "" .Params.Paper }}
+{{- $paper := $paperRaw }}
+{{- if and (ne $paperRaw "") (not (hasPrefix $paperRaw "http://")) (not (hasPrefix $paperRaw "https://")) (not (hasPrefix $paperRaw "/")) }}
+	{{- $paper = printf "%s%s" $projectPage $paperRaw }}
+{{- end }}
+{{- $code := default "" .Params.Code }}
+{{- $venue := default "" .Params.Venue }}
+{{- $authors := .Params.Authors }}
+{{- $notes := .Params.Notes }}
+
+{{- $paper := $paperRaw }}
+{{- if and (ne $paperRaw "") (not (hasPrefix $paperRaw "http://")) (not (hasPrefix $paperRaw "https://")) (not (hasPrefix $paperRaw "/")) }}
+	{{- $paper = printf "%s%s" $projectPage $paperRaw }}
+{{- end }}
+
+{{- $thumbnail := "" }}
+{{- if and (ne $thumbnailRaw "") (not (hasPrefix $thumbnailRaw "http://")) (not (hasPrefix $thumbnailRaw "https://")) }}
+    {{- if hasPrefix $thumbnailRaw "/" }}
+    	{{- $thumbnail = strings.TrimPrefix "/" $thumbnailRaw }}
+    {{- else }}
+        {{- $thumbnail = printf "%s%s" $projectPage $thumbnailRaw }}
+    {{- end }}
+{{- end }}
+{{- $comingSoon := .Params.ComingSoon }}
+
+{{ if $comingSoon }}
+	{{ $projectPage = "" }}
+{{ end}}
+
+
+<div class="pub-item">
+	{{ with $thumbnail }} 
+			<figure class="pub-thumbnail">
+				<a href="{{ $projectPage }}">
+					<img class="pub-thumbnail-image" src="{{ . | relURL }}">
+				</a>
+			</figure>
+	{{ end }}
+	<div class="pub-info">
+	<div class="pub-title"><a href="{{ $projectPage }}">{{ $title }}</a></div>
+	<div class="pub-author">
+		{{ range $index, $author := $authors }}
+		{{ $fullname := split (index $author "name") ", " }}
+		{{ $lastname := index $fullname 0 }}
+		{{ $firstname := index $fullname 1 }}
+		{{ $displayname := printf "%v %v" $firstname $lastname }}
+		{{- if (eq $displayname $.Site.Params.author.name) -}}<b>{{- $displayname -}}</b>
+		{{- else if (in $.Site.Params.author.publishName $displayname) -}}<b>{{- $displayname -}}</b>
+		{{- else -}}{{- $displayname -}}
+		{{- end -}}
+
+		{{- range $noteIndex := (index $author "notes") -}}
+			{{- $noteSymbol := (index (slice "*" "^") (sub $noteIndex 1)) -}}
+			{{- $noteSymbol -}}
+		{{- end -}}
+
+		{{- if ne (add $index 1) (len $authors) -}}{{- "," -}}{{- end -}}
+		{{ end }}
+
+		{{ with $notes }}
+		<span class="pale">
+		(
+			{{- range $index, $note := $notes -}}
+				{{- $noteSymbol := (index (slice "*" "^") $index) -}}
+				<span>{{ printf "%v%v  " $noteSymbol $note }}</span>
+			{{- end -}}
+		)
+	</span>
+		{{ end }}
+	</div>
+	<div class="pub-status">
+		<i>
+		{{ with $venue }}
+			<b>{{ index . "name" }}</b>
+			{{ with index . "note" }} ({{ . }}){{ end }}
+		{{ end }}
+		</i>
+	</div>
+	<div class="pub-links">
+	</div>
+	<div class="pub-description pale">
+		{{ $summary }}
+	</div>
+	</div>
+</div>

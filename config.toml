@@ -1,0 +1,29 @@
+baseURL = 'https://example.com'
+languageCode = 'en-us'
+title = 'Abstracted Away'
+theme = 'bloggraph'
+
+[params.author]
+    name = "Alex Hollow"
+    github = "SanielX"
+    linkedin = ""
+    email = "alex.k.hollow@gmail.com"
+
+[menu]
+[[menu.main]]
+    name = "Home"
+    url = '/'
+    weight = 1
+[[menu.main]]
+    name = "Posts"
+    url = '/publications'
+    weight = 2
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+      
+[caches]
+  [caches.images]
+    dir = ':cacheDir/images'

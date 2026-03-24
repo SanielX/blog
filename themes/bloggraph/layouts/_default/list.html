@@ -1,0 +1,7 @@
+{{- define "main" }}
+  {{ $title := default .CurrentSection.Section .Page.Title }}
+  {{- partial "archive" . }}
+  <div class="wrap">
+    {{- partial "pager" . }}
+  </div>
+{{- end }}

@@ -1,0 +1,14 @@
+{{- $title := default "P equals NP" (.Get "title" )}}
+
+{{- $publicationList := .Site.Pages }}
+{{- $target := where $publicationList "Title" $title }}
+
+
+{{ if eq (len $target) 0 }} {{ errorf "Failed to find a publication titled: %v" $title }} {{ end }}
+{{ if gt (len $target) 2 }} {{ warnf "find more than 1 publication titled: %v, proceed with the first one" $title }} {{ end }}
+
+{{- $targetPage := index $target 0 }}
+
+{{ with (index $target 0) }}
+	{{ partial "publication-overview" . }}
+{{ end }}
