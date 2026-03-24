@@ -31,7 +31,5 @@
 
   {{- $rss := printf "%s%s" (.RelPermalink) "index.xml" }}
 
-  <link rel="stylesheet" href="/css/custom.css">
-
   <link rel="alternate" type="application/rss+xml" href="{{ $rss }}" title="{{ .Site.Title }}" />
 </head>

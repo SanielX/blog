@@ -9,7 +9,7 @@ Hello, I'm Alex. I make games, mostly with Unity Engine in the past. Currently s
 ## Games
 
 <div class="proj_div">
-  <div class="prj_image"><img src="/images/st0_project.png"></div>
+  <div class="prj_image"><img src="/blog/images/st0_project.png"></div>
   
   <div class="proj_description">  
     <h2><a href="https://hostgame-studio.itch.io/slendytubbies-0">Slendytubbies 0</a></h2> 
@@ -24,7 +24,7 @@ Hello, I'm Alex. I make games, mostly with Unity Engine in the past. Currently s
 </div>
 
 <div class="proj_div">
-  <div class="prj_image"><img class="prj_image" src="/images/out_last_days_project.png"></div>
+  <div class="prj_image"><img class="prj_image" src="/blog/images/out_last_days_project.png"></div>
   
   <div class="proj_description">  
     <h2><a href="https://ftremus.itch.io/ourlastdaystogether">Our Last Days Together</a></h2>  
@@ -39,7 +39,7 @@ Hello, I'm Alex. I make games, mostly with Unity Engine in the past. Currently s
 </div>
 
 <div class="proj_div">
-  <div class="prj_image"><img class="prj_image" src="/images/mine_project.gif"></div>
+  <div class="prj_image"><img class="prj_image" src="/blog/images/mine_project.gif"></div>
   
   <div class="proj_description">  
     <h2><a href="https://ftremus.itch.io/mine">MINE!</a></h2>  
@@ -57,7 +57,7 @@ Hello, I'm Alex. I make games, mostly with Unity Engine in the past. Currently s
 ## Tools
 
 <div class="proj_div">
-  <div class="prj_image"><img class="prj_image" src="/terrain_system.gif"></div>
+  <div class="prj_image"><img class="prj_image" src="/blog/terrain_system.gif"></div>
   
   <div class="proj_description">  
     <h2><a href="https://github.com/SanielX/Hollow-TerrainSystem">Hollow;TerrainSystem (Unfinished)</a></h2>  
@@ -71,7 +71,7 @@ Hello, I'm Alex. I make games, mostly with Unity Engine in the past. Currently s
   </div>
 </div>
 <div class="proj_div">
-  <div class="prj_image"><img class="prj_image" src="/microscenes.gif"></div>
+  <div class="prj_image"><img class="prj_image" src="/blog/microscenes.gif"></div>
   
   <div class="proj_description">  
     <h2><a href="https://github.com/SanielX/Microscenes">Hollow;Microscenes</a></h2>  
