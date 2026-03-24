@@ -27,10 +27,12 @@ theme = 'bloggraph'
 [caches]
   [caches.images]
     dir = ':cacheDir/images'
-
+    
 [module]
-  [mounts]
-  - source: assets
-    target: assets
-  - source: static
-    target: assets
+  [[module.mounts]]
+  source = "assets"
+  target = "assets"
+
+  [[module.mounts]]
+  source = "static"
+  target = "assets"
