@@ -1,0 +1,4 @@
+
+{{- $src_path := .Get "src" }}
+{{- $src_file := resources.Get $src_path }}
+<img class="{{ .Get "class" }}" src="{{ $src_file.Permalink }}">
