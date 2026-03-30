@@ -367,4 +367,5 @@
       setUserColorMode(true);
     }
   });
+
 })();

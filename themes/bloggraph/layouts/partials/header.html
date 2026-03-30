@@ -1,7 +1,11 @@
 {{ $home := .Site.BaseURL }}
+{{ $logo := "/me.png" }}
+{{ $logo_link := resources.Get $logo }}
+
 <header class="nav">
   <nav class="nav-menu">
-    <a href="{{ $home }}" class="nav-brand">{{ .Site.Title }}</a>
+    <a href="{{ $home }}" id="nav_title" class="nav-brand">{{ .Site.Title }}</a>
+    
     <ul class="nav-labels">
       {{- range .Site.Menus.main }}
       <li>

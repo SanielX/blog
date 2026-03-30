@@ -2,6 +2,7 @@
 {{- $title := .Title }}
 {{- $thumbnailRaw := .Params.Thumbnail }}
 {{- $summary := default "" .Params.Summary }}
+{{- $date := default "" .Params.Date }}
 
 {{- $projectPage := default .Permalink .Params.ProjectPage }}
 {{- $paperRaw := default "" .Params.Paper }}
@@ -35,15 +36,8 @@
 
 
 <div class="pub-item">
-	{{ with $thumbnail }} 
-			<figure class="pub-thumbnail">
-				<a href="{{ $projectPage }}">
-					<img class="pub-thumbnail-image" src="{{ . | relURL }}">
-				</a>
-			</figure>
-	{{ end }}
 	<div class="pub-info">
-	<div class="pub-title"><a href="{{ $projectPage }}">{{ $title }}</a></div>
+	<div class="pub-title"><div class="pub-time">{{ $date.Format "02.01.2006" }}</div> <a href="{{ $projectPage }}">{{ $title }}</a></div>
 	<div class="pub-author">
 		{{ range $index, $author := $authors }}
 		{{ $fullname := split (index $author "name") ", " }}

@@ -1,5 +1,6 @@
 <p class="profile-social-box">
-{{- with $.Site.Params.author.github -}} <a class="profile-social" style="text-decoration: none;" href=https://github.com/{{ . }}><i class="fab fa-github"></i> github/{{- . -}}</a>{{- end -}}
-{{- with $.Site.Params.author.linkedin -}} <a class="profile-social" style="text-decoration: none;" href=https://linkedin.com/in/{{ . }}><i class="fab fa-linkedin-in"></i> linkedin/{{- . -}}</a>{{- end -}}
+{{- with $.Site.Params.author.github -}} <a class="profile-social" style="text-decoration: none;" href=https://github.com/{{ . }}><i class="fab fa-github"></i></a>{{- end -}}
+{{- with $.Site.Params.author.linkedin -}} <a class="profile-social" style="text-decoration: none;" href=https://linkedin.com/in/{{ . }}><i class="fab fa-linkedin-in"></i></a>{{- end -}}
+{{- with $.Site.Params.author.itch -}}<a class="profile-social" style="text-decoration: none;" href=https://{{ . }}.itch.io> <img src="https://static.itch.io/images/itchio-textless-black.svg" class="social_media_icon_"><i></i></a>{{- end -}}
 {{- with $.Site.Params.author.email -}}<a class="profile-social" style="text-decoration: none;" href=mailto:{{ . }}><i class="fas fa-envelope"></i> {{ . }}</a>{{- end -}}
 </p>

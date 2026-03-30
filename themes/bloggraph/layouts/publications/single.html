@@ -2,14 +2,18 @@
   {{/* start  bloggraph/layouts/publications/publications.html  */}}
   {{/*  {{ $.Page.Params }}  */}}
   {{ $title := $.Page.Title }}
+  {{ $date := $.Page.Date }}
   {{ $description := index $.Page.Params "summary" }}
   {{ $authors := index $.Page.Params "authors" }}
   {{ $venue := index $.Page.Params "venue" }}
-  {{ $affiliations := index $.Page.Params "affiliations" }}
   {{ $notes := index $.Page.Params "notes" }}
+  {{ $thumb := index $.Page.Params "thumbnail" }}
+
+  {{ $date := time.AsTime $date }}
+  {{ $format := "2 Jan 2006" }}
 
   <div class="publication-info">
-    <h1>{{ $title }}</h1>
+    <h1 style="margin-bottom: 0px;">{{ $title }}</h1> - {{ $date.Format "Jan 02, 2006"  }} <img class="expandable" src="{{ $thumb }}">
 
     {{ with $venue }}
     <h5 style="margin-top: 0;"><a href={{ index . "url" }}></a>{{ index . "name" }}</a></h5>
@@ -34,14 +38,6 @@
           {{- end -}}
           </a>
 
-          <div class="author-affliation">
-          {{ range $index, $affiliationIndex := (index $author "affiliations") }}
-            {{ $affiliationName := (index $affiliations (sub $affiliationIndex 1) "name") }}
-            {{ $affiliationURL := (index $affiliations (sub $affiliationIndex 1) "url") }}
-
-            <a class="author-affiliation-name" href="{{ $affiliationURL }}">{{$affiliationName }}</a>{{ if lt $index (sub $numAffl 1) }}<span style="font-size: 90%;"> and </span>{{ end }}
-          {{ end }}
-          </div>
 
         </div>
       {{ end }}

@@ -3,6 +3,10 @@
   {{ partial "head" . }}
   <body>
     <main>
+      
+      <div id="overlay">
+        <img>
+      </div>
       {{ partialCached "nav" . }}
       {{ block "main" . }}{{ end }}
     </main>

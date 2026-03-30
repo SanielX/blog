@@ -6,8 +6,9 @@ theme = 'bloggraph'
 [params.author]
     name = "Alex Hollow"
     github = "SanielX"
-    linkedin = ""
+    linkedin = "oleksandr-khodyka-01869a321"
     email = "alex.k.hollow@gmail.com"
+    itch = "saniell"
 
 [menu]
 [[menu.main]]
@@ -15,8 +16,8 @@ theme = 'bloggraph'
     url = '/'
     weight = 1
 [[menu.main]]
-    name = "Posts"
-    url = '/publications'
+    name = "Projects"
+    url = '/about'
     weight = 2
 
 [markup]
