@@ -2,9 +2,12 @@
 {{ $mainSassFile :=  "sass/main.sass" }}
 {{- $styles := resources.Get $mainSassFile | resources.ExecuteAsTemplate $mainSassFile . | css.Sass $options | resources.Fingerprint "sha512" }}
 
-{{- $custom_style := resources.Get "css/custom.css" }}
+{{ with resources.Get "css/custom.css" }}
+  {{ with resources.ExecuteAsTemplate "css/custom_.css" $ . }}
+    <link rel="stylesheet" href="{{ .RelPermalink }}">
+  {{ end }}
+{{ end }}
 
-<link rel="stylesheet" href="{{ $custom_style.Permalink }}">
 <link rel="stylesheet" href="{{ $styles.Permalink }}" integrity="{{ $styles.Data.Integrity }}" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -8,6 +8,7 @@ affiliations:
 
 ---
 {{< numbering h2=false h3=false >}}
+{{< figure src="../fog/preview.jpg" class="expandable" alt="" >}}
 
 This post is a result of me trying to figure out how exponential hight fog works and how to extend it to support features I need (such as min distance).
 

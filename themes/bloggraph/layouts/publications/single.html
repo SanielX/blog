@@ -7,13 +7,12 @@
   {{ $authors := index $.Page.Params "authors" }}
   {{ $venue := index $.Page.Params "venue" }}
   {{ $notes := index $.Page.Params "notes" }}
-  {{ $thumb := index $.Page.Params "thumbnail" }}
 
   {{ $date := time.AsTime $date }}
   {{ $format := "2 Jan 2006" }}
 
   <div class="publication-info">
-    <h1 style="margin-bottom: 0px;">{{ $title }}</h1> - {{ $date.Format "Jan 02, 2006"  }} <img class="expandable" src="{{ $thumb }}">
+    <h1 style="margin-bottom: 0px;">{{ $title }}</h1> - {{ $date.Format "Jan 02, 2006"  }} 
 
     {{ with $venue }}
     <h5 style="margin-top: 0;"><a href={{ index . "url" }}></a>{{ index . "name" }}</a></h5>
