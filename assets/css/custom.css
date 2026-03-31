@@ -12,7 +12,7 @@
   background-repeat: no-repeat;
   background-image: url("{{ $me_icon }}");
   
-  margin-right: 5px;
+  margin-right: 10px;
   margin-bottom: 5px;
 }
 
@@ -220,4 +220,10 @@
   padding-right: 10px;
   object-fit: cover;
   overflow: hidden;
+}
+
+.img_centered
+{
+  display:flex;
+  justify-content: center;
 }
