@@ -227,3 +227,8 @@
   display:flex;
   justify-content: center;
 }
+
+.img_small
+{
+  max-width: 450px;
+}

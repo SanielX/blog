@@ -16,7 +16,7 @@ theme = 'bloggraph'
     url = '/'
     weight = 1
 [[menu.main]]
-    name = "Projects"
+    name = "Portfolio"
     url = '/about'
     weight = 2
 
