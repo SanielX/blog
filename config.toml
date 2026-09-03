@@ -6,7 +6,6 @@ theme = 'bloggraph'
 [params.author]
     name = "Alex Hollow"
     github = "SanielX"
-    linkedin = "oleksandr-khodyka-01869a321"
     email = "alex.k.hollow@gmail.com"
     itch = "saniell"
 
