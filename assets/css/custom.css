@@ -16,6 +16,11 @@
   margin-bottom: 5px;
 }
 
+p
+{
+  text-align:justify;
+}
+
 .pub-time 
 {
   font-style: italic;

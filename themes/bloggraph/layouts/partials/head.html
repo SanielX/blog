@@ -30,6 +30,7 @@
   {{- partialCached "styles" . }}
 
   {{- $rss := printf "%s%s" (.RelPermalink) "index.xml" }}
-
+  
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <link rel="alternate" type="application/rss+xml" href="{{ $rss }}" title="{{ .Site.Title }}" />
 </head>

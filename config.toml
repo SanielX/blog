@@ -20,6 +20,8 @@ theme = 'bloggraph'
     weight = 2
 
 [markup]
+  [markup.highlight]
+    style = 'xcode'
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true
