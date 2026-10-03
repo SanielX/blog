@@ -16,6 +16,11 @@
   margin-bottom: 5px;
 }
 
+li > ul
+{
+  margin-left: 20px;
+}
+
 p
 {
   text-align:justify;

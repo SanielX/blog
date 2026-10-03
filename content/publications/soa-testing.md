@@ -8,26 +8,31 @@ affiliations:
 ---
 {{< numbering h2=false h3=false >}}
 
-Data-Oriented programming is big these days. It is baiscally common knowledge at this point that RAM is slow and that your software should be designed to take advantage of CPU caches and prefetching. To take advantage of the latter, you need predictable memory access patterns. By predictable people usually mean iterating over arrays with constant stride. 
-<br><br>
-This relates somewhat to the idea of using "Struct of Arrays" intead of "Array of Structs" to improve cache locality of your data and prefetching. The questions I always got is: 
-- How come CPU doesn't get confused when I'm jumping from one array to the next? 
-- What kinds of memory access patterns are considered predictable?
-- Are fat structs really that bad for performance?
-<br><br>
-In this blog post I want to setup a simple experiment to test different data layouts and see some numbers. I think nothing I present here is big news, you can find more in-depth info on this topic in [References](#references)
+Data-Oriented programming is big these days. It is basically a common knowledge at this point that DRAM is slow and that software should be designed to take advantage of CPU caches and prefetching. To make use of the latter - you need predictable memory access patterns. Which usually means iterating over arrays with a constant stride. Something you should also supposedly avoid is using "Fat Structs", i.e. structs that contain a lot of unrelated information in one place (such as game object with name, transform, flags and whatever else). However, fat structs are really simple to write and reason about. Most people will tell you that fat structs are perfectly fine to use, but I wanted to check for myself.
 
+*TLDR: They are pretty bad! Even with linear access patterns.*
+<br><br>
+The reason for it is that, as it turns out, hardware prefetchers operate with "streams", and each of them is limited to a single page of memory (4 KiB usually). Iterating with big strides causes a program to cross page boundaries more often - leading to perfromance degradation. That said, more modern CPU designes do have an ability to prefetch across page boundaries, but I do not have such a CPU and expect most people not to have one either. Intel added this with Redwood Cove (2023).
+<br><br>
+With all that said I still wanted to get some concrete numbers for my machine to see if how much this stuff matters and at what scale. So that's what we're going to do. If you're interested in more in-depth info on this topic, check out the [references](#references) for this post.
 
-## The Point {#the_point}
-Hardware prefetcher operates on cache lines, not simply memory addresses. It also has multiple "streams" that operate independently within an OS page (usually 4 KiB in size). Prefetching across page boundaries exists only on newer CPU architectures such as Intel's Redwood Cove.
 
 ## The Experiment {#the_experiment}
 
-Let's say you're making a videogame and your physics engine has given you a list of entity IDs that have moved this frame. You want to take this list and compute a transform matrix for each entity from their position, rotation and scale. For the sake of simplicity, let's say that the transform hierarchy is completely flat, no parents or children.
+Let's say you're making a videogame. You have a list of entities considered "dirty", so you want to recompute transform matrix for each of them from respective position, rotation and scale. For the sake of simplicity, there will be no parents or children in the transform hierarchy. So what I do is as follows:
+1. Prepare a list of dirty entity IDs (sequential or random list of all entities)
+2. Compute transform matrix using 4 different layouts:
+    * Fat Struct - Contains transform + output transform matrix + junk padding
+    * Lean Struct - Contains transform + output transform matrix
+    * Lean Struct (+Separate Output) - Entity contains only transform, output matrix is in a separate array
+    * SOA - Each field is it's own array
+3. Test it with 1'000, 10'000, 100'000, 400'000 and 1'000'000 entities
 <br><br>
 
+So here are the 4 struct layouts:
 ```c++
-struct Entity_Fat // 376 bytes per entity
+// 376 bytes per entity. Chosen arbitrarily
+struct Entity_Fat 
 {
   float4   rotation;
   float3   position;
@@ -71,35 +76,53 @@ struct Entity_SOA
 };
 Entity_SOA entities_soa;
 ```
+And here's is the loop we're going to test:
+```c++
+void test_fat()
+{
+  for(uint64_t i = 0; i < ENTITY_COUNT; i++)
+  {
+    int entity_index = entity_access_indices[i];
 
+    Entity_Fat *entity = &entities_fat[entity_index];
+    entity->transform = make_transform(entity->position, entity->rotation, entity->scale);
+  }
+}
+```
+It is about the same for each struct layout so I will leave full version in the source code for brevity. `make_transform` is a normal function that actually computes a transform matrix. I thought it would be nice to have something at least a little resembling a real workload for the test.
 
 ## Results
 I ran all these tests on AMD Ryzen 3700X. Each test ran 1000 iterations per method, but I also did run them multiple times and the numbers were about the same.
 ### Sequential Access - Median Time
 <div id="chart_seq_median"></div>
 
+So the results are about what I would expect. SOA is a little bit faster than any of the other ones, if I had to guess it could be because after loading 4 cache lines (index, position, rotation and scale) we can use them to compute ~16 matricies without going back into RAM. Multiple prefetch streams could also be helping. It's hard to tell for me.
+It's also very apparent that just moving big matrix out to its own separate array already helped a ton, which is nice.
+
 ### Random Access - Median Time
 <div id="chart_rand_median"></div>
 
-Preliminary results seems to indicate the following:
-- Fat structs literally do not matter when dealing with less than ~100'000 entities
-- SOA predictably wins with sequential access, although not by as much as I would expect compared to the "Separate Output" version
-
-Now there is an elephant in the room worth addressing, which is that both SOA and Separate Output become about as bad as the Fat Struct when doing tons of random accesses.
-Initially I was very confused by this, but after spinning up AMD uPerf and looking at some numbers it began to make sense to me.
+This is not what I'd expected. But let me just point out the obvious first:
+*Fat structs do not seem to matter when dealing with less than ~100'000 entities for both sequential and random access.* 
+So yes, you can use them for your indie game just fine without hitting performance problems for a while.
 <br><br>
-What the profiler shows, among other things, is that we have an astronomical amount of L2 TLB cache misses, which are the slow kind. From Intel Performance manual: "A miss in the shared TLB results in the Page Walker being invoked and this penalty can be noticeable in the execution."
+Now with that said, what surprised me is SOA becoming about as slow as the Fat Struct when doing random access. I generally thought that SOA is supposed to just "be better" than everything else, but it very clearly isn't the case here. So what gives? <br>
+Well, if we think about it, it actually makes sense. Remember how SOA needs to load 4 separate cache lines to compute the matrix? Now, we only use 1 value from each cache line and discarding the rest of it immediately. Compared to that, the Lean Struct approach only needs 1-2 cache lines to both compute and write the result.
+<br><br>
+If you run the benchmark with AMD uPerf we can find something else that I found interesting.
 
 {{< figure src="../soa_testing/uprof_n400000_seq.jpg" class="expandable" alt="" caption="Sequential Access (400'000 entities)" >}}
 
 {{< figure src="../soa_testing/uprof_n400000_rand.jpg" class="expandable" alt="" caption="Random Access (400'000 entities)" >}}
 
-Naturally, Fat version sucks because there are around 10 entities per page so keeping anything in cache is very hard.
-However, both SOA and Separate Output are problematic because **the CPU has to access multiple separate pages before it can do any work**. Compared to that, the lean version reads data from a cache line, computes the matrix and writes data back to the same/adjacent cache line (and adjacent cache line is usually in L2 already).
+There is a sharp rise in L2 TLB cache misses. TLB is used to cache translation from virtual to physical addresses. When a miss occurs, the CPU has to invoke the Page Walker and search for the physical address by, well, walking the page table. Naturally, Fat Struct has a lot of misses because there are around 10 entities per page, so keeping anything in cache is very hard.
+For SOA especially, we jump 5x as many pages per iteration, so naturally it produces more TLB misses.
 
 ## Conclusion {#conclusion}
-I think the biggest lesson here is just another proof that performance of anything will heavily depend on the workload and the algorithm. 
-It was a surprise for me to see SOA be so slow with random access. It is pretty apparent that keeping your struct size low is benefitial even if you access your data randomly.
+Source code for the benchmark can be found [here](https://github.com/SanielX/blog/blob/master/content/publications/soa_testing/test.cpp).
+
+The results of this tests were somewhat surprising to me and gave me a better view into cache performance considerations. Hopefully it was useful to you, the reader, as well.
+Thanks for reading!
 
 ## References {#references}
 1. ["What Every Programmer Should Know About Memory"](https://people.freebsd.org/~lstewart/articles/cpumemory.pdf) by Ulrich Drepper
@@ -152,7 +175,7 @@ var options = {
   yaxis: {
     logarithmic: false,
     title: {
-      text: 'milliseconds (logarithmic)',
+      text: 'milliseconds',
     },
   },
   fill: {
@@ -216,7 +239,7 @@ var options = {
   yaxis: {
     logarithmic: false,
     title: {
-      text: 'milliseconds (logarithmic)',
+      text: 'milliseconds',
     },
   },
   fill: {
