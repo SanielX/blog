@@ -8,16 +8,24 @@ affiliations:
 ---
 {{< numbering h2=false h3=false >}}
 
-Data-Oriented programming is big these days. It is basically a common knowledge at this point that DRAM is slow and that software should be designed to take advantage of CPU caches and prefetching. To make use of the latter - you need predictable memory access patterns. Which usually means iterating over arrays with a constant stride. Something you should also supposedly avoid is using "Fat Structs", i.e. structs that contain a lot of unrelated information in one place (such as game object with name, transform, flags and whatever else). However, fat structs are really simple to write and reason about. Most people will tell you that fat structs are perfectly fine to use, but I wanted to check for myself.
+Data-Oriented programming is big these days. It is basically a common knowledge at this point that DRAM is slow and that software should be designed to take advantage of CPU caches and prefetching. To take advantage of the hardware prefetcher a programmer needs to use predictable memory access patterns. This means, for example, iterating over arrays with a constant stride instead of chasing pointers. One should also prefer using Structs of Arrays (SoA) instead of Arrays of Structs (AoS). <br>
+Online I would commonly see extreme examples where people would suggest that you should store vectors something like this:
 
-*TLDR: They are pretty bad! Even with linear access patterns.*
+```c++
+struct Positions 
+{
+  float *x;
+  float *y;
+  float *z;
+}
+```
+
+At the time it wasn't clear to me whether this would actually be preferred or is it merely an example, but it seemed pretty clear to me that SoA was the way to go if I wanted maximum performance. As it turns out, things are not so simple, as we'll see later.
 <br><br>
-The reason for it is that, as it turns out, hardware prefetchers operate with "streams", and each of them is limited to a single page of memory (4 KiB usually). Iterating with big strides causes a program to cross page boundaries more often - leading to perfromance degradation. That said, more modern CPU designes do have an ability to prefetch across page boundaries, but I do not have such a CPU and expect most people not to have one either. Intel added this with Redwood Cove (2023).
-<br><br>
-With all that said I still wanted to get some concrete numbers for my machine to see if how much this stuff matters and at what scale. So that's what we're going to do. If you're interested in more in-depth info on this topic, check out the [references](#references) for this post.
+However from an another perspective, when making a game it is conceptually *much simpler* to have a single `Entity` type that contains all properties an entity might ever need - a "Fat Struct", if you will.<br> 
+It is common advice to at least start with such a design and maybe refactor it to SoA down the line. But how bad for performance is this approach exactly? And does it even matter? That's what I wanted to find out. In this blog post we're going to setup a very simple test to compare different approaches to structuring the data and seeing how it influences the performance. If you're interested in more in-depth info on this topic, check out the [references](#references) for this post. The source code for this test can be found [here](https://github.com/SanielX/blog/blob/master/content/publications/soa_testing/test.cpp).
 
-
-## The Experiment {#the_experiment}
+## The Test {#the_test}
 
 Let's say you're making a videogame. You have a list of entities considered "dirty", so you want to recompute transform matrix for each of them from respective position, rotation and scale. For the sake of simplicity, there will be no parents or children in the transform hierarchy. So what I do is as follows:
 1. Prepare a list of dirty entity IDs (sequential or random list of all entities)
@@ -89,27 +97,38 @@ void test_fat()
   }
 }
 ```
-It is about the same for each struct layout so I will leave full version in the source code for brevity. `make_transform` is a normal function that actually computes a transform matrix. I thought it would be nice to have something at least a little resembling a real workload for the test.
+It is about the same for each struct layout so I will leave the full version in the source code for brevity. `make_transform` is a normal function that actually computes a transform matrix. I thought it would be nice to have something at least a little resembling a real workload for the test.
+<br><br>
+Everything was tested on AMD Ryzen 3700X. Each test function is executed a 1000 times, then I graphed the median here although the program itself also computes min, max and the average value. The numbers seem pretty stable between program restarts as well but they do depend on the mood of my computer on a particular day a little.
 
-## Results
-I ran all these tests on AMD Ryzen 3700X. Each test ran 1000 iterations per method, but I also did run them multiple times and the numbers were about the same.
-### Sequential Access - Median Time
+## Comparing fat structs
+Before comparing different layouts I would like to point out something I found interesting when first doing this test for the first time.
+The size of a fat struct greatly influences the performance.
+### Linear Access - Median Time
+<div id="chart_fat_struct_size_comparison"></div>
+This result initially confused me. After all, I'm doing predictable memory access here aren't I? I'm reading 1-2 cache lines of data and then store the result, how come the prefetcher doesn't seem to help me here?<br><br>
+
+Well as it turns out, it is because hardware prefetchers operate with "streams", and each of those is limited to a *single page of memory* (4 KiB usually). Iterating with big strides causes a program to cross page boundaries more often - leading to perfromance degradation. More modern CPU designs do have an ability to start prefetching across page boundaries, but I do not have such a CPU and expect most people not to have one either. Intel has added this with Redwood Cove (2023).<br><br>
+
+Also, the 2048 byte struct is significantly slower than the other 2 versions even when doing only 10'000 operations, although it's hard to see, but it's 0.2 vs 0.06 ms
+
+## Comparing data layouts
+### Linear Access - Median Time
 <div id="chart_seq_median"></div>
 
-So the results are about what I would expect. SOA is a little bit faster than any of the other ones, if I had to guess it could be because after loading 4 cache lines (index, position, rotation and scale) we can use them to compute ~16 matricies without going back into RAM. Multiple prefetch streams could also be helping. It's hard to tell for me.
-It's also very apparent that just moving big matrix out to its own separate array already helped a ton, which is nice.
+This graph is exactly what I expected to see. SoA is a little bit faster than any of the other ones, because after loading 4 cache lines (index, position, rotation and scale) we can use them to compute ~16 matricies without going back into RAM. Well, it's actually more because aside from doing predictive prefetching, the hardware often also tries to put next cache line to the one we fetched into L2. Multiple prefetch streams could also be helping.
+
+It's also very apparent that just moving the big matrix out into its own separate array helped a ton, which is nice.
 
 ### Random Access - Median Time
 <div id="chart_rand_median"></div>
 
-This is not what I'd expected. But let me just point out the obvious first:
-*Fat structs do not seem to matter when dealing with less than ~100'000 entities for both sequential and random access.* 
-So yes, you can use them for your indie game just fine without hitting performance problems for a while.
+This is not what I'd expected. SoA is becoming about as slow as the Fat Struct when doing random access. I generally thought that SoA is supposed to just "be better" than everything else, but it very clearly isn't the case here. So what gives? <br><br>
+
+Well, if we think about it, it actually makes sense. Remember how SoA needs to load 4 separate cache lines to compute the matrix? Now, we only use 1 value from each cache line and discarding the rest of it immediately. Compared to that, the Lean Struct approach only needs 1-2 cache lines to both compute and write the result.
 <br><br>
-Now with that said, what surprised me is SOA becoming about as slow as the Fat Struct when doing random access. I generally thought that SOA is supposed to just "be better" than everything else, but it very clearly isn't the case here. So what gives? <br>
-Well, if we think about it, it actually makes sense. Remember how SOA needs to load 4 separate cache lines to compute the matrix? Now, we only use 1 value from each cache line and discarding the rest of it immediately. Compared to that, the Lean Struct approach only needs 1-2 cache lines to both compute and write the result.
-<br><br>
-If you run the benchmark with AMD uPerf we can find something else that I found interesting.
+
+If you run the benchmark with AMD uPerf (Intel has VTune for similar kind of profiling) and found something else.
 
 {{< figure src="../soa_testing/uprof_n400000_seq.jpg" class="expandable" alt="" caption="Sequential Access (400'000 entities)" >}}
 
@@ -119,21 +138,27 @@ There is a sharp rise in L2 TLB cache misses. TLB is used to cache translation f
 For SOA especially, we jump 5x as many pages per iteration, so naturally it produces more TLB misses.
 
 ## Conclusion {#conclusion}
-Source code for the benchmark can be found [here](https://github.com/SanielX/blog/blob/master/content/publications/soa_testing/test.cpp).
+It seems pretty apparent to me that fat structs are indeed fine until certain size or entity count. Using them as a starting point is pretty reasonable.
+The second lesson here is that keeping your hot data as small as possible might be a big performance win, for various reasons.
+<br><br>
 
-The results of this tests were somewhat surprising to me and gave me a better view into cache performance considerations. Hopefully it was useful to you, the reader, as well.
-Thanks for reading!
+Source code for the benchmark can be found [here](https://github.com/SanielX/blog/blob/master/content/publications/soa_testing/test.cpp).
+<br><br>
+
+I learned something new doing this, hopefully it was useful to you, the reader, as well.
+Thanks for following along, see you in the next one!
 
 ## References {#references}
 1. ["What Every Programmer Should Know About Memory"](https://people.freebsd.org/~lstewart/articles/cpumemory.pdf) by Ulrich Drepper
 2. [Battling the Prefetcher: Exploring Coffee Lake](https://abertschi.ch/blog/2022/prefetching/) by Bertschi Andrin
 3. [Intel® 64 and IA-32 Architectures Optimization Reference Manual](https://www.intel.com/content/www/us/en/content-details/671488/intel-64-and-ia-32-architectures-optimization-reference-manual-volume-1.html)
 
+
 <script>
 var options = {
   series: [
     {
-      name: 'Fat',
+      name: 'Fat (376 bytes)',
       data: [0.075000, 2.295000, 9.666000, 25.834000],
     },
     {
@@ -197,7 +222,7 @@ chart.render()
 var options = {
   series: [
     {
-      name: 'Fat',
+      name: 'Fat (376 bytes)',
       data: [0.089000, 4.004000, 17.447000, 45.502000],
     },
     {
@@ -254,5 +279,57 @@ var options = {
   },
 }
 var chart = new ApexCharts(document.querySelector('#chart_rand_median'), options)
+chart.render()
+</script>
+
+
+<script>
+var options = {
+  series: [
+    { name: '128 bytes',  data: [0.053000, 0.555000, 4.129000, 10.306000], }, 
+    { name: '512 bytes',  data: [0.060000, 1.760000, 7.271000, 18.284000], }, 
+    { name: '2048 bytes', data: [0.213000, 2.350000, 9.671000, 25.359000], }, 
+  ],
+  chart: {
+    type: 'bar',
+    height: 350,
+  },
+  plotOptions: {
+    bar: {
+      horizontal: false,
+      columnWidth: '55%',
+      borderRadius: 5,
+      borderRadiusApplication: 'end',
+    },
+  },
+  dataLabels: {
+    enabled: false,
+  },
+  stroke: {
+    show: true,
+    width: 2,
+    colors: ['transparent'],
+  },
+  xaxis: {
+    categories: ["10'000", "100'000", "400'000", "1'000'000"],
+  },
+  yaxis: {
+    logarithmic: false,
+    title: {
+      text: 'milliseconds',
+    },
+  },
+  fill: {
+    opacity: 1,
+  },
+  tooltip: {
+    y: {
+      formatter: function (val) {
+        return val + " ms";
+      },
+    },
+  },
+}
+var chart = new ApexCharts(document.querySelector('#chart_fat_struct_size_comparison'), options)
 chart.render()
 </script>

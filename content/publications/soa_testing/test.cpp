@@ -1,4 +1,12 @@
-// Compile with 'cl test.cpp -O2'
+// Build with 'cl test.cpp -O2'
+// Fat struct test commands:
+/*
+-E[NUMBER] - sets size of a fat struct
+-N[NUMBER] - sets entity count
+-rand      - switches to random access patterns
+-sort      - attempts to do std::sort when doing random access (just makes everything slower tbh)
+*/
+
 #include <corecrt_malloc.h>
 #define WIN32_LEAN_AND_MEAN
 #include <stdio.h>
@@ -54,20 +62,21 @@ inline float4x4 make_transform(float3 t, float4 r, float3 s)
   return o;
 }
 
+size_t ENTITY_FAT_SIZE = 376; // to make testing easier this is also configurable. 
 struct Entity_Fat // 376 bytes per entity
 {
   float4   rotation;
   float3   position;
   float3   scale;
   float4x4 transform;
-
-  char _junk_data_1[270];
 };
 Entity_Fat *entities_fat;
 
 __declspec(noinline) void init_entity_fat(uint64_t entity_count)
 {
-  entities_fat = (Entity_Fat*)_aligned_malloc(sizeof(Entity_Fat) * entity_count, 4096);
+  size_t fat_entity_size = (sizeof(Entity_Fat) + (ENTITY_FAT_SIZE - sizeof(Entity_Fat)));
+  printf("Fat Entity size %llu\n", fat_entity_size);
+  entities_fat = (Entity_Fat*)_aligned_malloc(fat_entity_size * entity_count, 4096);
   for(uint64_t i = 0; i < entity_count; i++)
   {
     entities_fat[i] = 
@@ -151,7 +160,7 @@ __declspec(noinline) void init_entity_soa(uint64_t entity_count)
   }
 }
 
-size_t ENTITY_COUNT = 1000;
+size_t ENTITY_COUNT = 2'500'000;
 
 void test_fat();
 void test_lean();
@@ -177,10 +186,12 @@ double elapsed_miliseconds(uint64_t start, uint64_t end)
 }
 
 int *entity_access_indices;
+int *entity_access_indices_original;
 
 __declspec(noinline) void init_access_indices(uint64_t entity_count, bool random_pattern)
 {
-  entity_access_indices = (int*)_aligned_malloc(sizeof(int)*entity_count, 4096);
+  entity_access_indices          = (int*)_aligned_malloc(sizeof(int)*entity_count, 4096);
+  entity_access_indices_original = (int*)_aligned_malloc(sizeof(int)*entity_count, 4096);
   
   for(uint64_t i = 0; i < entity_count; i++) // linear access
   {
@@ -206,30 +217,42 @@ __declspec(noinline) void init_access_indices(uint64_t entity_count, bool random
       std::swap(entity_access_indices[i], entity_access_indices[j]);
     }
   }
+
+  memcpy(entity_access_indices_original, entity_access_indices, sizeof(int)*entity_count);
 }
 
 using bench_func = void();
 void bench(const char *what, uint64_t iterations, bench_func *func);
 
+bool RANDOM_INDICES = false;
+bool DO_SORT        = false;
+
 int main(int argc, char **argv)
 {
   srand(time(NULL));
   QueryPerformanceFrequency(&clock_frequency);
-
-  bool random_indices = false;
+  
   for(int i = 0; i < argc; i++)
   {
     if(strcmp(argv[i], "-rand") == 0)
     {
-      random_indices = true;
+      RANDOM_INDICES = true;
+    }
+    else if(strcmp(argv[i], "-sort") == 0)
+    {
+      DO_SORT = true;
     }
     else if(argv[i][0] == '-' && argv[i][1] == 'N')
     {
       ENTITY_COUNT = atoi(argv[i]+2);
     }
+    else if(argv[i][0] == '-' && argv[i][1] == 'E')
+    {
+      ENTITY_FAT_SIZE = atoi(argv[i]+2);
+    }
   }
 
-  init_access_indices             (ENTITY_COUNT, random_indices);
+  init_access_indices             (ENTITY_COUNT, RANDOM_INDICES);
   printf("Testing with %llu entities...\n", ENTITY_COUNT);
 
   init_entity_fat                 (ENTITY_COUNT);
@@ -238,15 +261,20 @@ int main(int argc, char **argv)
   init_entity_soa                 (ENTITY_COUNT);
 
   uint64_t iterations = 1000;
-  printf("|Struct Layout                | Avg (ms) | Median (ms) | Min (ms) | Max (ms) |\n");
-  bench("Fat                          ", iterations, test_fat);
-  bench("Lean                         ", iterations, test_lean);
-  bench("Lean (Separate Output)       ", iterations, test_lean_separate_output);
-  bench("SOA                          ", iterations, test_soa);
+  printf("|Struct Layout                | Avg (ms) | Median (ms) | Min (ms) | Max (ms) | Sort Avg (ms) |\n");
+  bench ("Fat                          ", iterations, test_fat); 
+  bench ("Lean                         ", iterations, test_lean);
+  bench ("Lean (Separate Output)       ", iterations, test_lean_separate_output);
+  bench ("SOA                          ", iterations, test_soa);
 }
 
 __declspec(noinline) void cache_evict_indices()
 {
+  if(DO_SORT)
+  {
+    memcpy(entity_access_indices, entity_access_indices_original, sizeof(int)*ENTITY_COUNT);
+  }
+
   constexpr size_t CACHE_LINE = 64;
   uint8_t *addr = (uint8_t*)entity_access_indices;
   for(uint64_t i = 0; i < ENTITY_COUNT; i += CACHE_LINE)
@@ -260,25 +288,33 @@ volatile uint64_t time_stub;
 
 __declspec(noinline) void bench(const char *what, uint64_t iterations, bench_func *func)
 {
-  double *results = (double*)malloc(sizeof(double) * iterations);
+  double *results      = (double*)malloc(sizeof(double) * iterations);
+
+  double t_sort_avg = 0.0;
   double t_avg = 0.0, t_min = 999999999, t_max = -99999999;
   for(uint64_t i = 0; i < iterations; i++)
   {
     cache_evict_indices();
 
     uint64_t t_start = sample_time();
-   // time_stub = t_start;
+    
+    if(DO_SORT)
+    {
+      std::sort(entity_access_indices, entity_access_indices+ENTITY_COUNT);
+      uint64_t t_sort_end = sample_time();
+      t_sort_avg += elapsed_miliseconds(t_start, t_sort_end);
+    }
 
     func();
     
-    uint64_t t_end   = sample_time();
-    //time_stub = t_end;
+    uint64_t t_end = sample_time();
 
     double   elapsed = elapsed_miliseconds(t_start, t_end);
     results[i] = elapsed;
     t_avg     += elapsed;
   }
-  t_avg /= (double)iterations;
+  t_avg    /= (double)iterations;
+  t_sort_avg /= (double)iterations;
 
   std::sort(results, results + iterations);
   double t_median = results[iterations / 2];
@@ -291,7 +327,7 @@ __declspec(noinline) void bench(const char *what, uint64_t iterations, bench_fun
     t_max = elapsed > t_max? elapsed : t_max;
   }
   
-  printf("|%s| %f | %f    | %f | %f |\n", what, t_avg, t_median, t_min, t_max);
+  printf("|%s| %f | %f    | %f | %f | %f |\n", what, t_avg, t_median, t_min, t_max, t_sort_avg);
 
   free(results);
 }
@@ -302,7 +338,7 @@ void test_fat()
   {
     int entity_index = entity_access_indices[i];
 
-    Entity_Fat *entity = &entities_fat[entity_index];
+    Entity_Fat *entity = (Entity_Fat*)((char*)entities_fat + ENTITY_FAT_SIZE * i);
     entity->transform = make_transform(entity->position, entity->rotation, entity->scale);
   }
 }
