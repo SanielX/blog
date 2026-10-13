@@ -1,4 +1,4 @@
-// Build with 'cl test.cpp -O2'
+// Build with 'cl test.cpp -O2'. I'm using QueryPerformanceTimer instead of high-res clock so this will only compile on windows, sorry
 // Fat struct test commands:
 /*
 -E[NUMBER] - sets size of a fat struct

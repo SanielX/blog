@@ -2,6 +2,7 @@
   {{/* start  bloggraph/layouts/publications/publications.html  */}}
   {{/*  {{ $.Page.Params }}  */}}
   {{ $title := $.Page.Title }}
+  {{ $desc  := index $.Page.Params "description" }}
   {{ $date := $.Page.Date }}
   {{ $description := index $.Page.Params "summary" }}
   {{ $authors := index $.Page.Params "authors" }}
@@ -12,7 +13,10 @@
   {{ $format := "2 Jan 2006" }}
 
   <div class="publication-info">
-    <h1 style="margin-bottom: 0px;">{{ $title }}</h1> - {{ $date.Format "Jan 02, 2006"  }} 
+    <h1 style="margin-bottom: 0px;">{{ $title }}</h1> 
+    <h4 style="margin-top: 0px; margin-bottom: 0px; font-style: italic;">{{ $desc }}</h4>
+    <p style="margin-bottom: 0px; font-style: italic;">Alex Hollow - {{ $date.Format "Jan 02, 2006"  }} </p>
+    
 
     {{ with $venue }}
     <h5 style="margin-top: 0;"><a href={{ index . "url" }}></a>{{ index . "name" }}</a></h5>

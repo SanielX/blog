@@ -24,6 +24,7 @@ li > ul
 p
 {
   text-align:justify;
+  margin-bottom: 1em;
 }
 
 .pub-time 
